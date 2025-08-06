@@ -1,0 +1,622 @@
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AttackNoteSpace } from "@/components/ui/attack-note-space";
+import { 
+  Code2Icon, 
+  Plus, 
+  Search, 
+  MoreVertical,
+  Edit,
+  Trash2,
+  Eye,
+  Copy,
+  Terminal,
+  Tag,
+  Calendar,
+  User,
+  Shield,
+  Zap,
+  FileText,
+  Settings
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Technique, TechniqueTag } from "@/types";
+import { techniqueAdapter } from '@/lib/data-adapter';
+import { toast } from 'sonner';
+const categoryColors = {
+  "Injection": "bg-red-100 text-red-800 border-red-200",
+  "Cross-Site Scripting": "bg-orange-100 text-orange-800 border-orange-200",
+  "Authentication Bypass": "bg-blue-100 text-blue-800 border-blue-200",
+  "Path Traversal": "bg-purple-100 text-purple-800 border-purple-200",
+  "Command Injection": "bg-red-100 text-red-800 border-red-200",
+  "Mobile Security": "bg-green-100 text-green-800 border-green-200",
+  "Network Reconnaissance": "bg-indigo-100 text-indigo-800 border-indigo-200",
+  "Automated Testing": "bg-yellow-100 text-yellow-800 border-yellow-200"
+};
+
+const difficultyColors = {
+  "Beginner": "bg-green-100 text-green-800 border-green-200",
+  "Intermediate": "bg-yellow-100 text-yellow-800 border-yellow-200",
+  "Advanced": "bg-red-100 text-red-800 border-red-200"
+};
+
+export default function TechniquesPage() {
+    const [techniques, setTechniques] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadTechniques = async () => {
+    try {
+      setLoading(true);
+      const data = await techniqueAdapter.getAll();
+      setTechniques(data);
+    } catch (error) {
+      console.error('Failed to load techniques:', error);
+      toast.error('Failed to load techniques');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTechniques();
+  }, []);
+
+  const handleCreateTechnique = async () => {
+    try {
+      await techniqueAdapter.create(newTechnique);
+      toast.success('Created successfully');
+      loadTechniques();
+      // Reset form state here
+    } catch (error) {
+      console.error('Failed to create:', error);
+      toast.error('Failed to create');
+    }
+  };
+
+  const handleUpdateTechnique = async () => {
+    try {
+      await techniqueAdapter.update(id, updates);
+      toast.success('Updated successfully');
+      loadTechniques();
+      // Reset edit state here
+    } catch (error) {
+      console.error('Failed to update:', error);
+      toast.error('Failed to update');
+    }
+  };
+
+  const handleDeleteTechnique = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      try {
+        await techniqueAdapter.delete(id);
+        toast.success('Deleted successfully');
+        loadTechniques();
+      } catch (error) {
+        console.error('Failed to delete:', error);
+        toast.error('Failed to delete');
+      }
+    }
+  };
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [techniqueInNoteSpace, setTechniqueInNoteSpace] = useState<any>(null);
+  const [editingTechnique, setEditingTechnique] = useState<any>(null);
+  const [newTechnique, setNewTechnique] = useState({
+    name: "",
+    description: "",
+    command: "",
+    technologyId: "",
+    functionalityId: "",
+    behaviourId: "",
+    bypass: false,
+    tags: "",
+    contentMd: ""
+  });
+
+  const filteredTechniques = techniques.filter(technique => {
+    const matchesSearch = technique.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         technique.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         technique.command.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         technique.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesCategory = categoryFilter === "all" || technique.category === categoryFilter;
+    const matchesDifficulty = difficultyFilter === "all" || technique.difficulty === difficultyFilter;
+    return matchesSearch && matchesCategory && matchesDifficulty;
+  });
+
+  const handleCreateTechnique = () => {
+    console.log("Creating technique:", newTechnique);
+    // In real implementation, this would make an API call
+    techniques.push({
+      id: (techniques.length + 1).toString(),
+      ...newTechnique,
+      tags: newTechnique.tags.split(',').map(t => t.trim()).filter(Boolean)
+    });
+    setIsCreateDialogOpen(false);
+    setNewTechnique({
+      name: "",
+      description: "",
+      command: "",
+      technologyId: "",
+      functionalityId: "",
+      behaviourId: "",
+      bypass: false,
+      tags: "",
+      contentMd: ""
+    });
+  };
+
+  const handleEditTechnique = (technique: any) => {
+    setEditingTechnique({ ...technique, tags: technique.tags.join(', ') });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateTechnique = () => {
+    console.log("Updating technique:", editingTechnique);
+    // In real implementation, this would make an API call
+    const index = techniques.findIndex(t => t.id === editingTechnique.id);
+    if (index !== -1) {
+      techniques[index] = {
+        ...editingTechnique,
+        tags: editingTechnique.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      };
+    }
+    setIsEditDialogOpen(false);
+    setEditingTechnique(null);
+  };
+
+  const handleDeleteTechnique = (techniqueId: string) => {
+    if (window.confirm('Are you sure you want to delete this technique?')) {
+      console.log("Deleting technique:", techniqueId);
+      // In real implementation, this would make an API call
+      const index = techniques.findIndex(t => t.id === techniqueId);
+      if (index !== -1) {
+        techniques.splice(index, 1);
+      }
+    }
+  };
+
+  const handleOpenNoteSpace = (technique: any) => {
+    setTechniqueInNoteSpace(technique);
+  };
+
+  const handleSaveInNoteSpace = (updatedTechnique: any) => {
+    console.log("Saving in note space:", updatedTechnique);
+    // In real implementation, this would make an API call
+    const index = techniques.findIndex(t => t.id === updatedTechnique.id);
+    if (index !== -1) {
+      techniques[index] = updatedTechnique;
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const categories = [...new Set(techniques.map(t => t.category))];
+  const difficulties = ["Beginner", "Intermediate", "Advanced"];
+
+  return (
+    <div className="flex flex-col space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Techniques</h1>
+          <p className="text-muted-foreground">
+            Collection of attack techniques, payloads, and commands for security testing
+          </p>
+        </div>
+        
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Technique
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Add New Technique</DialogTitle>
+              <DialogDescription>
+                Add a new attack technique or payload to your collection.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">Name</Label>
+                <Input
+                  id="name"
+                  value={newTechnique.name}
+                  onChange={(e) => setNewTechnique({ ...newTechnique, name: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Technique name"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="technologyId" className="text-right">Technology</Label>
+                <Input
+                  id="technologyId"
+                  value={newTechnique.technologyId}
+                  onChange={(e) => setNewTechnique({ ...newTechnique, technologyId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated technology ID"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="functionalityId" className="text-right">Functionality</Label>
+                <Input
+                  id="functionalityId"
+                  value={newTechnique.functionalityId}
+                  onChange={(e) => setNewTechnique({ ...newTechnique, functionalityId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated functionality ID"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="behaviourId" className="text-right">Behaviour</Label>
+                <Input
+                  id="behaviourId"
+                  value={newTechnique.behaviourId}
+                  onChange={(e) => setNewTechnique({ ...newTechnique, behaviourId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Behaviour this technique targets/uses"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="bypass" className="text-right">Bypass?</Label>
+                <div className="col-span-3 flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="bypass"
+                    checked={newTechnique.bypass}
+                    onChange={(e) => setNewTechnique({ ...newTechnique, bypass: e.target.checked })}
+                  />
+                  <Label htmlFor="bypass" className="text-sm text-muted-foreground">True if technique bypasses the behaviour, false if it takes advantage of it</Label>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="description" className="text-right pt-2">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newTechnique.description}
+                  onChange={(e) => setNewTechnique({ ...newTechnique, description: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Describe the technique"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="command" className="text-right pt-2">Command/Payload</Label>
+                <Textarea
+                  id="command"
+                  value={newTechnique.command}
+                  onChange={(e) => setNewTechnique({ ...newTechnique, command: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Command or payload"
+                  rows={2}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="tags" className="text-right">Tags</Label>
+                <Input
+                  id="tags"
+                  value={newTechnique.tags}
+                  onChange={(e) => setNewTechnique({ ...newTechnique, tags: e.target.value })}
+                  className="col-span-3"
+                  placeholder="sql, xss, injection (comma separated)"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="content" className="text-right pt-2">Content</Label>
+                <Textarea
+                  id="content"
+                  value={newTechnique.contentMd}
+                  onChange={(e) => setNewTechnique({ ...newTechnique, contentMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Detailed technique content (optional)"
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleCreateTechnique}>
+                Add Technique
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Technique</DialogTitle>
+              <DialogDescription>
+                Update the technique details.
+              </DialogDescription>
+            </DialogHeader>
+            {editingTechnique && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-name" className="text-right">Name</Label>
+                  <Input
+                    id="edit-name"
+                    value={editingTechnique.name}
+                    onChange={(e) => setEditingTechnique({ ...editingTechnique, name: e.target.value })}
+                    className="col-span-3"
+                    placeholder="Technique name"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-category" className="text-right">Category</Label>
+                  <Input
+                    id="edit-category"
+                    value={editingTechnique.category}
+                    onChange={(e) => setEditingTechnique({ ...editingTechnique, category: e.target.value })}
+                    className="col-span-3"
+                    placeholder="e.g., Injection, XSS"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label htmlFor="edit-description" className="text-right pt-2">Description</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={editingTechnique.description}
+                    onChange={(e) => setEditingTechnique({ ...editingTechnique, description: e.target.value })}
+                    className="col-span-3"
+                    placeholder="Describe the technique"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label htmlFor="edit-command" className="text-right pt-2">Command/Payload</Label>
+                  <Textarea
+                    id="edit-command"
+                    value={editingTechnique.command}
+                    onChange={(e) => setEditingTechnique({ ...editingTechnique, command: e.target.value })}
+                    className="col-span-3"
+                    placeholder="Command or payload"
+                    rows={2}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-platform" className="text-right">Platform</Label>
+                  <Input
+                    id="edit-platform"
+                    value={editingTechnique.platform}
+                    onChange={(e) => setEditingTechnique({ ...editingTechnique, platform: e.target.value })}
+                    className="col-span-3"
+                    placeholder="e.g., Web Applications, Mobile"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-tags" className="text-right">Tags</Label>
+                  <Input
+                    id="edit-tags"
+                    value={editingTechnique.tags}
+                    onChange={(e) => setEditingTechnique({ ...editingTechnique, tags: e.target.value })}
+                    className="col-span-3"
+                    placeholder="sql, xss, injection (comma separated)"
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="submit" onClick={handleUpdateTechnique}>
+                Update Technique
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search techniques..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map(category => (
+              <SelectItem key={category} value={category}>{category}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="All Levels" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Levels</SelectItem>
+            {difficulties.map(difficulty => (
+              <SelectItem key={difficulty} value={difficulty}>{difficulty}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {filteredTechniques.map((technique) => (
+          <Card key={technique.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Code2Icon className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-lg leading-tight">{technique.name}</CardTitle>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className={categoryColors[technique.category]}>
+                      {technique.category}
+                    </Badge>
+                    <Badge variant="outline" className={difficultyColors[technique.difficulty]}>
+                      {technique.difficulty}
+                    </Badge>
+                    <Badge variant="outline">
+                      {technique.platform}
+                    </Badge>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleOpenNoteSpace(technique)}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Open Note Space
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => copyToClipboard(technique.command)}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy Command
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleEditTechnique(technique)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTechnique(technique.id)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="mb-4">
+                {technique.description}
+              </CardDescription>
+              
+              <div className="mb-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Terminal className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Command/Payload:</span>
+                </div>
+                <div className="bg-muted rounded-md p-3 font-mono text-sm break-all">
+                  {technique.command}
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-1">
+                {technique.tags.map((tag, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    <Tag className="mr-1 h-2 w-2" />
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredTechniques.length === 0 && (
+        <div className="text-center py-12">
+          <Code2Icon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No techniques found</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchTerm || categoryFilter !== "all" || difficultyFilter !== "all"
+              ? "Try adjusting your search or filter criteria." 
+              : "Get started by adding your first technique."}
+          </p>
+          {!searchTerm && categoryFilter === "all" && difficultyFilter === "all" && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Technique
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Attack Note Space */}
+      {techniqueInNoteSpace && (
+        <AttackNoteSpace
+          entity={techniqueInNoteSpace}
+          entityType="technique"
+          onSave={handleSaveInNoteSpace}
+          onClose={() => setTechniqueInNoteSpace(null)}
+          showLeftSidebar={true}
+          showRightSidebar={true}
+          leftSidebarTitle="Functionalities & Technologies"
+          rightSidebarTitle="Related Behaviors"
+          leftSidebarContent={
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Associated Functionalities</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Functionality
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="secondary" className="text-xs">Input Validation</Badge>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Associated Technologies</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Technology
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="secondary" className="text-xs">MySQL</Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+          rightSidebarContent={
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Target Behaviors</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Behavior
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="text-xs">Dynamic SQL Generation</Badge>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Related Payloads</h4>
+                <div className="space-y-2">
+                  <Card className="p-2">
+                    <p className="text-xs">Union-based SQL Payloads</p>
+                    <Button variant="ghost" size="sm" className="h-6 w-full mt-1">
+                      View
+                    </Button>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          }
+        />
+      )}
+    </div>
+  );
+}

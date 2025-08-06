@@ -1,0 +1,607 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  BriefcaseIcon,
+  Plus,
+  Search,
+  ExternalLink,
+  Calendar,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Play,
+  Pause,
+  StopCircle,
+  Monitor,
+  Globe2,
+  Eye
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ProgramStatus, Program } from "@/types";
+import { programAdapter, platformAdapter } from "@/lib/data-adapter";
+import { toast } from 'sonner';
+import { useAppContext } from '@/lib/supabase-app-context';
+
+// Platform options for selection (fallback)
+const platformOptions = [
+  { id: "hackerone", name: "HackerOne", icon: Globe2 },
+  { id: "bugcrowd", name: "Bugcrowd", icon: Globe2 },
+  { id: "synack", name: "Synack", icon: Globe2 },
+  { id: "yeswehack", name: "YesWeHack", icon: Globe2 },
+  { id: "openbugbounty", name: "Open Bug Bounty", icon: Globe2 },
+];
+
+const statusVariants = {
+  [ProgramStatus.Active]: "default",
+  [ProgramStatus.Paused]: "secondary",
+  [ProgramStatus.Ended]: "outline"
+} as const;
+
+export default function ProgramsPage() {
+  const navigate = useNavigate();
+  const { currentWorkspaceId } = useAppContext();
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [platforms, setPlatforms] = useState<{ id: string; name: string; icon: React.ComponentType }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingProgram, setEditingProgram] = useState<Program | null>(null);
+  const [newProgram, setNewProgram] = useState({
+    name: "",
+    description: "",
+    programUrl: "",
+    status: ProgramStatus.Active,
+    platformId: "",
+    notes: ""
+  });
+
+  const loadPrograms = async () => {
+    try {
+      setLoading(true);
+      const data = await programAdapter.getAll();
+      setPrograms(data);
+    } catch (error) {
+      console.error('Failed to load programs:', error);
+      toast.error('Failed to load programs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load programs and platforms on mount
+  useEffect(() => {
+    loadPrograms();
+    
+    // Load platforms from database
+    const loadPlatforms = async () => {
+      try {
+        if (currentWorkspaceId) {
+          const platformData = await platformAdapter.getAll(currentWorkspaceId);
+          // Map the platform data to match our expected format
+          const mappedPlatforms = platformData.map(platform => ({
+            id: platform.id,
+            name: platform.name,
+            icon: Globe2 // Using a default icon for now
+          }));
+          setPlatforms(mappedPlatforms);
+        }
+      } catch (error) {
+        console.error('Failed to load platforms:', error);
+        // Fallback to hardcoded platforms if database load fails
+        setPlatforms(platformOptions);
+      }
+    };
+    
+    loadPlatforms();
+  }, [currentWorkspaceId]);
+
+  const filteredPrograms = programs.filter(program => {
+    const matchesSearch = program.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (program.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || program.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleCreateProgram = async () => {
+    try {
+      const programData = {
+        ...newProgram,
+        workspaceId: currentWorkspaceId || 'default-workspace',
+        launchDate: new Date().toISOString()
+      };
+      
+      await programAdapter.create(programData);
+      toast.success('Program created successfully');
+      
+      setIsCreateDialogOpen(false);
+      setNewProgram({
+        name: "",
+        description: "",
+        programUrl: "",
+        status: ProgramStatus.Active,
+        platformId: "",
+        notes: ""
+      });
+      
+      // Reload programs
+      loadPrograms();
+    } catch (error) {
+      console.error('Failed to create program:', error);
+      toast.error('Failed to create program');
+    }
+  };
+
+  const handleEditProgram = (program: Program) => {
+    setEditingProgram({ ...program });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateProgram = async () => {
+    if (!editingProgram) return;
+    
+    try {
+      await programAdapter.update(editingProgram.id, editingProgram);
+      toast.success('Program updated successfully');
+      
+      setIsEditDialogOpen(false);
+      setEditingProgram(null);
+      
+      // Reload programs
+      loadPrograms();
+    } catch (error) {
+      console.error('Failed to update program:', error);
+      toast.error('Failed to update program');
+    }
+  };
+
+  const handleDeleteProgram = async (programId: string) => {
+    if (window.confirm('Are you sure you want to delete this program? This action cannot be undone.')) {
+      try {
+        await programAdapter.delete(programId);
+        toast.success('Program deleted successfully');
+        
+        // Reload programs
+        loadPrograms();
+      } catch (error) {
+        console.error('Failed to delete program:', error);
+        toast.error('Failed to delete program');
+      }
+    }
+  };
+
+  const handlePauseProgram = (programId: string) => {
+    console.log("Pausing program:", programId);
+    // In real implementation, this would make an API call
+    const index = programs.findIndex(p => p.id === programId);
+    if (index !== -1) {
+      programs[index].status = ProgramStatus.Paused;
+    }
+  };
+
+  const handleResumeProgram = (programId: string) => {
+    console.log("Resuming program:", programId);
+    // In real implementation, this would make an API call
+    const index = programs.findIndex(p => p.id === programId);
+    if (index !== -1) {
+      programs[index].status = ProgramStatus.Active;
+    }
+  };
+
+  const handleEndProgram = (programId: string) => {
+    if (window.confirm('Are you sure you want to end this program? This will change its status to Ended.')) {
+      console.log("Ending program:", programId);
+      // In real implementation, this would make an API call
+      const index = programs.findIndex(p => p.id === programId);
+      if (index !== -1) {
+        programs[index].status = ProgramStatus.Ended;
+      }
+    }
+  };
+
+  const handleViewProgram = (programId: string) => {
+    navigate(`/app/programs/${programId}`);
+  };
+
+  const getStatusColor = (status: ProgramStatus) => {
+    switch (status) {
+      case ProgramStatus.Active:
+        return "bg-green-500";
+      case ProgramStatus.Paused:
+        return "bg-amber-500";
+      case ProgramStatus.Ended:
+        return "bg-gray-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
+  const getPlatformName = (platformId: string) => {
+    const platform = platforms.find(p => p.id === platformId);
+    return platform ? platform.name : platformId;
+  };
+
+  return (
+    <div className="flex flex-col space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Programs</h1>
+          <p className="text-muted-foreground">
+            Manage your bug bounty programs and security testing engagements
+          </p>
+        </div>
+        
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Program
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Create New Program</DialogTitle>
+              <DialogDescription>
+                Add a new bug bounty program or security testing engagement to track.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="name"
+                  value={newProgram.name}
+                  onChange={(e) => setNewProgram({ ...newProgram, name: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Enter program name"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="description" className="text-right pt-2">
+                  Description
+                </Label>
+                <Textarea
+                  id="description"
+                  value={newProgram.description}
+                  onChange={(e) => setNewProgram({ ...newProgram, description: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Describe the program"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="url" className="text-right">
+                  URL
+                </Label>
+                <Input
+                  id="url"
+                  value={newProgram.programUrl}
+                  onChange={(e) => setNewProgram({ ...newProgram, programUrl: e.target.value })}
+                  className="col-span-3"
+                  placeholder="https://platform.com/program"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="platform" className="text-right">
+                  Platform
+                </Label>
+                <Select value={newProgram.platformId} onValueChange={(value) => setNewProgram({ ...newProgram, platformId: value })}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select platform" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {platforms.map((platform) => (
+                      <SelectItem key={platform.id} value={platform.id}>
+                        <div className="flex items-center gap-2">
+                          <Monitor className="h-4 w-4" />
+                          {platform.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">
+                  Status
+                </Label>
+                <Select value={newProgram.status} onValueChange={(value) => setNewProgram({ ...newProgram, status: value as ProgramStatus })}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ProgramStatus.Active}>Active</SelectItem>
+                    <SelectItem value={ProgramStatus.Paused}>Paused</SelectItem>
+                    <SelectItem value={ProgramStatus.Ended}>Ended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="notes" className="text-right pt-2">
+                  Notes
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={newProgram.notes}
+                  onChange={(e) => setNewProgram({ ...newProgram, notes: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Additional notes..."
+                  rows={2}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleCreateProgram}>
+                Create Program
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search programs..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="All Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value={ProgramStatus.Active}>Active</SelectItem>
+            <SelectItem value={ProgramStatus.Paused}>Paused</SelectItem>
+            <SelectItem value={ProgramStatus.Ended}>Ended</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {filteredPrograms.map((program) => (
+          <Card 
+            key={program.id} 
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => handleViewProgram(program.id)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <BriefcaseIcon className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-lg">{program.name}</CardTitle>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className={`h-2 w-2 rounded-full ${getStatusColor(program.status)}`}></div>
+                    <Badge variant={statusVariants[program.status]}>
+                      {program.status}
+                    </Badge>
+                    <Badge variant="outline">{getPlatformName(program.platformId)}</Badge>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewProgram(program.id); }}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditProgram(program); }}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    {program.status === ProgramStatus.Active && (
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePauseProgram(program.id); }}>
+                        <Pause className="mr-2 h-4 w-4" />
+                        Pause
+                      </DropdownMenuItem>
+                    )}
+                    {program.status === ProgramStatus.Paused && (
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleResumeProgram(program.id); }}>
+                        <Play className="mr-2 h-4 w-4" />
+                        Resume
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEndProgram(program.id); }}>
+                      <StopCircle className="mr-2 h-4 w-4" />
+                      End Program
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteProgram(program.id); }}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="mb-4">
+                {program.description}
+              </CardDescription>
+              
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="text-sm">
+                  <span className="font-medium">Assets:</span> 0
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Vulnerabilities:</span> 0
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>Started {new Date(program.launchDate).toLocaleDateString()}</span>
+                </div>
+                {program.programUrl && (
+                  <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()}>
+                    <a href={program.programUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                )}
+              </div>
+
+              <div className="text-xs text-muted-foreground mb-2">
+                <span className="font-medium">Workspace:</span> {program.workspaceId}
+              </div>
+
+              {program.notes && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium">Notes:</span> {program.notes}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredPrograms.length === 0 && (
+        <div className="text-center py-12">
+          <BriefcaseIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No programs found</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchTerm || statusFilter !== "all" 
+              ? "Try adjusting your search or filter criteria." 
+              : "Get started by creating your first program."}
+          </p>
+          {!searchTerm && statusFilter === "all" && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Program
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Edit Program Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Program</DialogTitle>
+            <DialogDescription>
+              Update the program details and settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="edit-name"
+                value={editingProgram?.name || ""}
+                onChange={(e) => setEditingProgram({ ...editingProgram, name: e.target.value })}
+                className="col-span-3"
+                placeholder="Enter program name"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="edit-description" className="text-right pt-2">
+                Description
+              </Label>
+              <Textarea
+                id="edit-description"
+                value={editingProgram?.description || ""}
+                onChange={(e) => setEditingProgram({ ...editingProgram, description: e.target.value })}
+                className="col-span-3"
+                placeholder="Describe the program"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-url" className="text-right">
+                URL
+              </Label>
+              <Input
+                id="edit-url"
+                value={editingProgram?.programUrl || ""}
+                onChange={(e) => setEditingProgram({ ...editingProgram, programUrl: e.target.value })}
+                className="col-span-3"
+                placeholder="https://platform.com/program"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-platform" className="text-right">
+                Platform
+              </Label>
+              <Select value={editingProgram?.platformId || ""} onValueChange={(value) => setEditingProgram({ ...editingProgram, platformId: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  {platforms.map((platform) => (
+                    <SelectItem key={platform.id} value={platform.id}>
+                      <div className="flex items-center gap-2">
+                        <Monitor className="h-4 w-4" />
+                        {platform.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-status" className="text-right">
+                Status
+              </Label>
+              <Select value={editingProgram?.status || ProgramStatus.Active} onValueChange={(value) => setEditingProgram({ ...editingProgram, status: value as ProgramStatus })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ProgramStatus.Active}>Active</SelectItem>
+                  <SelectItem value={ProgramStatus.Paused}>Paused</SelectItem>
+                  <SelectItem value={ProgramStatus.Ended}>Ended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="edit-notes" className="text-right pt-2">
+                Notes
+              </Label>
+              <Textarea
+                id="edit-notes"
+                value={editingProgram?.notes || ""}
+                onChange={(e) => setEditingProgram({ ...editingProgram, notes: e.target.value })}
+                className="col-span-3"
+                placeholder="Additional notes..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={handleUpdateProgram}>
+              Update Program
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

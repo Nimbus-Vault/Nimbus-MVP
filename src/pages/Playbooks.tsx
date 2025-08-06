@@ -1,0 +1,638 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AttackNoteSpace } from "@/components/ui/attack-note-space";
+import { 
+  FlaskConicalIcon, 
+  Plus, 
+  Search, 
+  MoreVertical,
+  Edit,
+  Trash2,
+  Eye,
+  Calendar,
+  User,
+  FileText,
+  Play,
+  Tag,
+  Layers,
+  BookOpen,
+  Settings,
+  Code
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Playbook } from "@/types";
+import { playbookAdapter } from '@/lib/data-adapter';
+import { toast } from 'sonner';
+const playbooks: Playbook[] = [
+  {
+    id: "1",
+    workspaceId: "ws1",
+    methodologyId: "meth1",
+    name: "SQL Injection Detection and Exploitation",
+    description: "Step-by-step playbook for detecting and exploiting SQL injection vulnerabilities using various techniques including union-based, boolean-based, and time-based attacks.",
+    contentMd: "## Overview\n\nThis playbook covers comprehensive SQL injection testing...\n\n## Steps\n\n1. **Information Gathering**\n   - Identify input parameters\n   - Test for error-based injection\n\n2. **Exploitation**\n   - Union-based attacks\n   - Boolean-based blind attacks\n   - Time-based attacks",
+    diagramMd: "```mermaid\ngraph TD\n    A[Input Parameters] --> B[Error Testing]\n    B --> C[Union Attacks]\n    C --> D[Boolean Blind]\n    D --> E[Time-based]\n```",
+    contextTags: ["sql", "injection", "web", "database"],
+    createdBy: "john.doe@example.com",
+    createdAt: "2024-01-20T10:00:00Z"
+  },
+  {
+    id: "2",
+    workspaceId: "ws1",
+    methodologyId: "meth2",
+    name: "XSS Testing Checklist",
+    description: "Comprehensive checklist for testing various XSS attack vectors including reflected, stored, and DOM-based vulnerabilities.",
+    contentMd: "## XSS Testing Methodology\n\n### Reflected XSS\n1. Test all input parameters\n2. Use various payloads\n3. Check for WAF bypasses\n\n### Stored XSS\n1. Test persistent inputs\n2. Check different user contexts\n3. Test file uploads",
+    diagramMd: "```mermaid\ngraph LR\n    A[Input] --> B[Reflect]\n    A --> C[Store]\n    A --> D[DOM]\n```",
+    contextTags: ["xss", "web", "client-side", "javascript"],
+    createdBy: "jane.smith@example.com",
+    createdAt: "2024-02-05T14:30:00Z"
+  },
+  {
+    id: "3",
+    workspaceId: "ws1",
+    methodologyId: "meth3",
+    name: "API Authentication Testing Guide",
+    description: "Detailed guide for testing API authentication mechanisms including JWT tokens, OAuth flows, and session management.",
+    contentMd: "## API Authentication Testing\n\n### JWT Token Testing\n1. Check for weak secrets\n2. Test algorithm confusion\n3. Verify token validation\n\n### OAuth Flow Testing\n1. State parameter validation\n2. Redirect URI validation\n3. PKCE implementation",
+    diagramMd: null,
+    contextTags: ["api", "authentication", "jwt", "oauth"],
+    createdBy: "mike.wilson@example.com",
+    createdAt: "2024-02-18T09:15:00Z"
+  },
+  {
+    id: "4",
+    workspaceId: "ws1",
+    methodologyId: "meth4",
+    name: "Mobile App Static Analysis Playbook",
+    description: "Complete playbook for performing static analysis on mobile applications including decompilation, code review, and configuration analysis.",
+    contentMd: "## Mobile Static Analysis\n\n### Android Analysis\n1. APK decompilation with jadx\n2. Manifest analysis\n3. Code review for vulnerabilities\n\n### iOS Analysis\n1. IPA extraction and analysis\n2. Plist file examination\n3. Binary analysis with Hopper",
+    diagramMd: "```mermaid\nflowchart TD\n    A[Mobile App] --> B[Android APK]\n    A --> C[iOS IPA]\n    B --> D[Decompile]\n    C --> E[Extract]\n```",
+    contextTags: ["mobile", "static-analysis", "android", "ios"],
+    createdBy: "sarah.johnson@example.com",
+    createdAt: "2024-03-05T16:45:00Z"
+  },
+  {
+    id: "5",
+    workspaceId: "ws1",
+    methodologyId: "meth5",
+    name: "Network Service Enumeration",
+    description: "Systematic approach to enumerating network services and identifying potential attack vectors in infrastructure assessments.",
+    contentMd: "## Service Enumeration\n\n### Port Scanning\n1. TCP SYN scan with nmap\n2. UDP service discovery\n3. Service version detection\n\n### Service-Specific Enumeration\n1. HTTP/HTTPS services\n2. SMB/NetBIOS enumeration\n3. Database service testing",
+    diagramMd: null,
+    contextTags: ["network", "enumeration", "nmap", "services"],
+    createdBy: "alex.brown@example.com",
+    createdAt: "2024-03-12T11:20:00Z"
+  },
+  {
+    id: "6",
+    workspaceId: "ws1",
+    methodologyId: "meth6",
+    name: "Business Logic Flaw Identification",
+    description: "Guide for identifying and exploiting business logic vulnerabilities that automated scanners cannot detect.",
+    contentMd: "## Business Logic Testing\n\n### Workflow Analysis\n1. Map application workflows\n2. Identify critical business processes\n3. Test process bypasses\n\n### Common Flaws\n1. Price manipulation\n2. Privilege escalation\n3. Race conditions",
+    diagramMd: "```mermaid\ngraph TB\n    A[Business Process] --> B[Map Workflow]\n    B --> C[Identify Flaws]\n    C --> D[Test Bypasses]\n```",
+    contextTags: ["business-logic", "manual", "workflow", "bypasses"],
+    createdBy: "chris.davis@example.com",
+    createdAt: "2024-03-25T13:10:00Z"
+  }
+];
+
+export default function PlaybooksPage() {
+  const [playbooks, setPlaybooks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [methodologyFilter, setMethodologyFilter] = useState("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedPlaybook, setSelectedPlaybook] = useState<string | null>(null);
+  const [playbookInNoteSpace, setPlaybookInNoteSpace] = useState<any>(null);
+  const [editingPlaybook, setEditingPlaybook] = useState<any>(null);
+  const [newPlaybook, setNewPlaybook] = useState({
+    name: "",
+    vulnerabilityClassId: "",
+    description: "",
+    contentMd: "",
+    diagramMd: "",
+    functionalityIds: [] as string[],
+    technologyIds: [] as string[],
+    techniqueIds: [] as string[]
+  });
+
+  const filteredPlaybooks = playbooks.filter(playbook => {
+    const matchesSearch = playbook.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         playbook.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         playbook.contentMd.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesMethodology = methodologyFilter === "all" || playbook.methodologyId === methodologyFilter;
+    return matchesSearch && matchesMethodology;
+  });
+
+  const loadPlaybooks = async () => {
+    try {
+      setLoading(true);
+      const data = await playbookAdapter.getAll();
+      setPlaybooks(data);
+    } catch (error) {
+      console.error('Failed to load playbooks:', error);
+      toast.error('Failed to load playbooks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPlaybooks();
+  }, []);
+
+  const handleCreatePlaybook = async () => {
+    try {
+      await playbookAdapter.create(newPlaybook);
+      toast.success('Created successfully');
+      loadPlaybooks();
+      // Reset form state here
+    } catch (error) {
+      console.error('Failed to create:', error);
+      toast.error('Failed to create');
+    }
+  };
+
+  const handleEditPlaybook = (playbook: any) => {
+    setEditingPlaybook({ ...playbook });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdatePlaybook = () => {
+    console.log("Updating playbook:", editingPlaybook);
+    // In real implementation, this would make an API call
+    const index = playbooks.findIndex(p => p.id === editingPlaybook.id);
+    if (index !== -1) {
+      playbooks[index] = {
+        ...editingPlaybook,
+        contextTags: editingPlaybook.contextTags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      };
+    }
+    setIsEditDialogOpen(false);
+    setEditingPlaybook(null);
+  };
+
+  const handleDeletePlaybook = (playbookId: string) => {
+    if (window.confirm('Are you sure you want to delete this playbook?')) {
+      console.log("Deleting playbook:", playbookId);
+      // In real implementation, this would make an API call
+      const index = playbooks.findIndex(p => p.id === playbookId);
+      if (index !== -1) {
+        playbooks.splice(index, 1);
+      }
+    }
+  };
+
+  const handleOpenNoteSpace = (playbook: any) => {
+    setPlaybookInNoteSpace(playbook);
+  };
+
+  const handleSaveInNoteSpace = (updatedPlaybook: any) => {
+    console.log("Saving in note space:", updatedPlaybook);
+    // In real implementation, this would make an API call
+    const index = playbooks.findIndex(p => p.id === updatedPlaybook.id);
+    if (index !== -1) {
+      playbooks[index] = updatedPlaybook;
+    }
+  };
+
+  const methodologies = [...new Set(playbooks.map(p => p.methodologyId))];
+
+  const selectedPlaybookData = playbooks.find(p => p.id === selectedPlaybook);
+
+  return (
+    <div className="flex flex-col space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Playbooks</h1>
+          <p className="text-muted-foreground">
+            Detailed step-by-step guides and checklists for security testing
+          </p>
+        </div>
+        
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Playbook
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Playbook</DialogTitle>
+                <DialogDescription>
+                  Create a detailed playbook with step-by-step instructions for a specific testing scenario.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="name"
+                  value={newPlaybook.name}
+                  onChange={(e) => setNewPlaybook({ ...newPlaybook, name: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Playbook name"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="vulnerabilityClassId" className="text-right">
+                  Vulnerability Class
+                </Label>
+                <Input
+                  id="vulnerabilityClassId"
+                  value={newPlaybook.vulnerabilityClassId}
+                  onChange={(e) => setNewPlaybook({ ...newPlaybook, vulnerabilityClassId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated vulnerability class ID"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="description" className="text-right pt-2">
+                  Description
+                </Label>
+                <Textarea
+                  id="description"
+                  value={newPlaybook.description}
+                  onChange={(e) => setNewPlaybook({ ...newPlaybook, description: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Brief description of the playbook"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="contentMd" className="text-right pt-2">
+                  Content (Markdown)
+                </Label>
+                <Textarea
+                  id="contentMd"
+                  value={newPlaybook.contentMd}
+                  onChange={(e) => setNewPlaybook({ ...newPlaybook, contentMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Detailed playbook content in Markdown format"
+                  rows={8}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="diagramMd" className="text-right pt-2">
+                  Diagram (Markdown)
+                </Label>
+                <Textarea
+                  id="diagramMd"
+                  value={newPlaybook.diagramMd}
+                  onChange={(e) => setNewPlaybook({ ...newPlaybook, diagramMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Mermaid diagrams or visual content in Markdown"
+                  rows={4}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right pt-2">Associated Items</Label>
+                <div className="col-span-3 space-y-2">
+                  <Input 
+                    placeholder="Functionality IDs (comma-separated)" 
+                    onChange={(e) => setNewPlaybook({ ...newPlaybook, functionalityIds: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                  <Input 
+                    placeholder="Technology IDs (comma-separated)" 
+                    onChange={(e) => setNewPlaybook({ ...newPlaybook, technologyIds: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                  <Input 
+                    placeholder="Technique IDs (comma-separated)" 
+                    onChange={(e) => setNewPlaybook({ ...newPlaybook, techniqueIds: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleCreatePlaybook}>
+                Create Playbook
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Playbook</DialogTitle>
+              <DialogDescription>
+                Update the playbook details.
+              </DialogDescription>
+            </DialogHeader>
+            {editingPlaybook && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-name" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="edit-name"
+                    value={editingPlaybook.name}
+                    onChange={(e) => setEditingPlaybook({ ...editingPlaybook, name: e.target.value })}
+                    className="col-span-3"
+                    placeholder="Playbook name"
+                  />
+                </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-vulnerabilityClassId" className="text-right">
+                  Vulnerability Class
+                </Label>
+                <Input
+                  id="edit-vulnerabilityClassId"
+                  value={editingPlaybook.vulnerabilityClassId}
+                  onChange={(e) => setEditingPlaybook({ ...editingPlaybook, vulnerabilityClassId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated vulnerability class ID"
+                />
+              </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label htmlFor="edit-description" className="text-right pt-2">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="edit-description"
+                    value={editingPlaybook.description}
+                    onChange={(e) => setEditingPlaybook({ ...editingPlaybook, description: e.target.value })}
+                    className="col-span-3"
+                    placeholder="Brief description of the playbook"
+                    rows={3}
+                  />
+                </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right pt-2">Associated Items</Label>
+                <div className="col-span-3 space-y-2">
+                  <Input 
+                    placeholder="Functionality IDs (comma-separated)" 
+                    value={(editingPlaybook.functionalityIds || []).join(', ')}
+                    onChange={(e) => setEditingPlaybook({ ...editingPlaybook, functionalityIds: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                  <Input 
+                    placeholder="Technology IDs (comma-separated)" 
+                    value={(editingPlaybook.technologyIds || []).join(', ')}
+                    onChange={(e) => setEditingPlaybook({ ...editingPlaybook, technologyIds: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                  <Input 
+                    placeholder="Technique IDs (comma-separated)" 
+                    value={(editingPlaybook.techniqueIds || []).join(', ')}
+                    onChange={(e) => setEditingPlaybook({ ...editingPlaybook, techniqueIds: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                </div>
+              </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="submit" onClick={handleUpdatePlaybook}>
+                Update Playbook
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search playbooks..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Select value={methodologyFilter} onValueChange={setMethodologyFilter}>
+          <SelectTrigger className="w-[250px]">
+            <SelectValue placeholder="All Methodologies" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Methodologies</SelectItem>
+            {methodologies.map(methodology => (
+              <SelectItem key={methodology} value={methodology}>{methodology}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {filteredPlaybooks.map((playbook) => (
+          <Card key={playbook.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <FlaskConicalIcon className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-lg leading-tight">{playbook.name}</CardTitle>
+                  </div>
+                  <Badge variant="outline" className="mb-2">
+                    Methodology: {playbook.methodologyId}
+                  </Badge>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleOpenNoteSpace(playbook)}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Open Note Space
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSelectedPlaybook(playbook.id)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Content
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Play className="mr-2 h-4 w-4" />
+                      Execute Playbook
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleEditPlaybook(playbook)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeletePlaybook(playbook.id)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="mb-4 line-clamp-3">
+                {playbook.description}
+              </CardDescription>
+              
+              <div className="flex flex-wrap gap-1 mb-4">
+                {(playbook.contextTags || []).map((tag, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    <Tag className="mr-1 h-2 w-2" />
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+              
+              <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
+                <div className="flex items-center space-x-1">
+                  <FileText className="h-3 w-3" />
+                  <span>Content available</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>{new Date(playbook.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t">
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                  <User className="h-3 w-3" />
+                  <span>Created by {playbook.createdBy}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredPlaybooks.length === 0 && (
+        <div className="text-center py-12">
+          <FlaskConicalIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No playbooks found</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchTerm || methodologyFilter !== "all" 
+              ? "Try adjusting your search or filter criteria." 
+              : "Get started by creating your first playbook."}
+          </p>
+          {!searchTerm && methodologyFilter === "all" && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Playbook
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Playbook Content Viewer Dialog */}
+      <Dialog open={!!selectedPlaybook} onOpenChange={() => setSelectedPlaybook(null)}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{selectedPlaybookData?.name}</DialogTitle>
+            <DialogDescription>
+              Methodology ID: {selectedPlaybookData?.methodologyId}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Content</h4>
+                <div className="prose prose-sm max-w-none bg-muted/30 p-4 rounded">
+                  <pre className="whitespace-pre-wrap text-sm">
+                    {selectedPlaybookData?.contentMd}
+                  </pre>
+                </div>
+              </div>
+              {selectedPlaybookData?.diagramMd && (
+                <div>
+                  <h4 className="font-semibold text-sm mb-2">Diagram</h4>
+                  <div className="prose prose-sm max-w-none bg-muted/30 p-4 rounded">
+                    <pre className="whitespace-pre-wrap text-sm">
+                      {selectedPlaybookData.diagramMd}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setSelectedPlaybook(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Attack Note Space */}
+      {playbookInNoteSpace && (
+        <AttackNoteSpace
+          entity={playbookInNoteSpace}
+          entityType="playbook"
+          onSave={handleSaveInNoteSpace}
+          onClose={() => setPlaybookInNoteSpace(null)}
+          showLeftSidebar={true}
+          showRightSidebar={true}
+          leftSidebarTitle="Functionalities & Technologies"
+          rightSidebarTitle="Workflows & Behaviors"
+          leftSidebarContent={
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Associated Functionalities</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Functionality
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="secondary" className="text-xs">Login System</Badge>
+                    <Badge variant="secondary" className="text-xs">User Registration</Badge>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Associated Technologies</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Technology
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="secondary" className="text-xs">MySQL</Badge>
+                    <Badge variant="secondary" className="text-xs">PHP</Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+          rightSidebarContent={
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Associated Behaviors</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Behavior
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="text-xs">SQL Query Building</Badge>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Workflow Diagrams</h4>
+                <div className="space-y-2">
+                  <Card className="p-2">
+                    <p className="text-xs">Attack Flow Diagram</p>
+                    <Button variant="ghost" size="sm" className="h-6 w-full mt-1">
+                      <Code className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          }
+        />
+      )}
+    </div>
+  );
+}

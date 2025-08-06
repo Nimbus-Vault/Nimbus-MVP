@@ -1,0 +1,516 @@
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Layers, 
+  Plus, 
+  Search, 
+  MoreVertical,
+  Edit,
+  Trash2,
+  Eye,
+  Settings,
+  ExternalLink
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { EnhancedNoteSpace } from "@/components/ui/enhanced-note-space";
+
+// Mock data for technologies
+const mockTechnologies = [
+  {
+    id: "1",
+    name: "React",
+    vendor: "Meta",
+    category: "JavaScript Framework",
+    docUrl: "https://reactjs.org/docs",
+    description: "A JavaScript library for building user interfaces with component-based architecture.",
+    latestVersion: "18.2.0",
+    defaultConfigs: "# React Configuration\n\n## package.json\n```json\n{\n  \"dependencies\": {\n    \"react\": \"^18.2.0\",\n    \"react-dom\": \"^18.2.0\"\n  }\n}\n```\n\n## Security Headers\n- Content-Security-Policy\n- X-Frame-Options\n- X-Content-Type-Options",
+    defaultBehaviors: ["Client-side rendering", "Virtual DOM", "Component lifecycle"],
+    notes: "# React Security Analysis\n\n## Common Vulnerabilities\n- XSS through dangerouslySetInnerHTML\n- Prototype pollution\n- Dependency vulnerabilities\n\n## Best Practices\n- Sanitize user input\n- Use latest version\n- Regular security audits",
+    version: "1.0",
+    createdAt: "2024-03-15"
+  },
+  {
+    id: "2", 
+    name: "Apache Struts",
+    vendor: "Apache Software Foundation",
+    category: "Java Framework",
+    docUrl: "https://struts.apache.org/",
+    description: "Enterprise-ready web application framework for Java EE applications.",
+    latestVersion: "6.3.0",
+    defaultConfigs: "# Struts Configuration\n\n## struts.xml\n```xml\n<struts>\n  <constant name=\"struts.devMode\" value=\"false\" />\n  <constant name=\"struts.enable.DynamicMethodInvocation\" value=\"false\" />\n</struts>\n```\n\n## Security Settings\n- Disable development mode\n- Disable dynamic method invocation\n- Input validation",
+    defaultBehaviors: ["MVC pattern", "OGNL expression evaluation", "Action-based routing"],
+    notes: "# Apache Struts Security\n\n## High-Risk Components\n- OGNL expression language\n- File upload functionality\n- Serialization/deserialization\n\n## Common CVEs\n- Remote Code Execution\n- XXE vulnerabilities\n- Directory traversal",
+    version: "2.1",
+    createdAt: "2024-03-16"
+  },
+  {
+    id: "3",
+    name: "WordPress",
+    vendor: "WordPress Foundation",
+    category: "CMS",
+    docUrl: "https://developer.wordpress.org/",
+    description: "Popular content management system powering over 40% of websites globally.",
+    latestVersion: "6.4.2",
+    defaultConfigs: "# WordPress Configuration\n\n## wp-config.php\n```php\ndefine('WP_DEBUG', false);\ndefine('DISALLOW_FILE_EDIT', true);\ndefine('FORCE_SSL_ADMIN', true);\n```\n\n## Security Hardening\n- Hide wp-admin from unauthorized users\n- Limit login attempts\n- Regular updates",
+    defaultBehaviors: ["Plugin architecture", "Theme system", "Database-driven content"],
+    notes: "# WordPress Security Analysis\n\n## Attack Surface\n- Core vulnerabilities\n- Plugin vulnerabilities\n- Theme vulnerabilities\n- Weak credentials\n\n## Hardening Checklist\n- Update core, plugins, themes\n- Strong passwords\n- Security plugins\n- File permissions",
+    version: "1.3",
+    createdAt: "2024-03-17"
+  },
+  {
+    id: "4",
+    name: "Spring Boot",
+    vendor: "VMware",
+    category: "Java Framework",
+    docUrl: "https://spring.io/projects/spring-boot",
+    description: "Opinionated framework for building production-ready Spring applications with minimal configuration.",
+    latestVersion: "3.2.1",
+    defaultConfigs: "# Spring Boot Configuration\n\n## application.properties\n```properties\nserver.error.whitelabel.enabled=false\nmanagement.endpoints.web.exposure.include=health,info\nspring.datasource.hikari.maximum-pool-size=10\n```\n\n## Security Configuration\n- Spring Security integration\n- Actuator endpoint protection\n- CORS configuration",
+    defaultBehaviors: ["Auto-configuration", "Embedded server", "Production metrics"],
+    notes: "# Spring Boot Security\n\n## Common Issues\n- Exposed actuator endpoints\n- Insecure deserialization\n- Missing authentication\n- Information disclosure\n\n## Security Features\n- Spring Security integration\n- CSRF protection\n- Session management",
+    version: "1.5",
+    createdAt: "2024-03-18"
+  }
+];
+
+interface TechnologyDetailProps {
+  technology: any;
+  onClose: () => void;
+  onSave: (content: string) => void;
+}
+
+function TechnologyDetail({ technology, onClose, onSave }: TechnologyDetailProps) {
+  const handleSave = (updatedTechnology: any) => {
+    if (updatedTechnology.notes) {
+      onSave(updatedTechnology.notes);
+    }
+  };
+
+  return (
+    <EnhancedNoteSpace
+      entity={technology}
+      entityType="technology"
+      onSave={handleSave}
+      onClose={onClose}
+      leftSidebarTitle="Default Configs"
+      rightSidebarTitle="Default Behaviors"
+      showLeftSidebar={true}
+      showRightSidebar={true}
+      leftSidebarContent={
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-medium text-sm mb-2">Configuration Templates</h4>
+            <div className="space-y-2">
+              <div className="bg-muted/50 p-2 rounded border">
+                <div className="flex items-center justify-between mb-1">
+                  <Badge variant="outline" className="text-xs">Config</Badge>
+                </div>
+                <h5 className="text-xs font-medium mb-1">Production Configuration</h5>
+                <p className="text-xs text-muted-foreground mb-2">Production-ready settings</p>
+                <Button variant="ghost" size="sm" className="h-6 w-full">
+                  <Settings className="h-3 w-3 mr-1" />
+                  View Config
+                </Button>
+              </div>
+              <div className="bg-muted/50 p-2 rounded border">
+                <div className="flex items-center justify-between mb-1">
+                  <Badge variant="outline" className="text-xs">Security</Badge>
+                </div>
+                <h5 className="text-xs font-medium mb-1">Security Settings</h5>
+                <p className="text-xs text-muted-foreground mb-2">Security hardening configuration</p>
+                <Button variant="ghost" size="sm" className="h-6 w-full">
+                  <Settings className="h-3 w-3 mr-1" />
+                  View Config
+                </Button>
+              </div>
+              <div className="bg-muted/50 p-2 rounded border">
+                <div className="flex items-center justify-between mb-1">
+                  <Badge variant="outline" className="text-xs">Performance</Badge>
+                </div>
+                <h5 className="text-xs font-medium mb-1">Performance Tuning</h5>
+                <p className="text-xs text-muted-foreground mb-2">Optimization settings</p>
+                <Button variant="ghost" size="sm" className="h-6 w-full">
+                  <Settings className="h-3 w-3 mr-1" />
+                  View Config
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+      rightSidebarContent={
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-medium text-sm mb-2">Default Behaviors</h4>
+            <div className="space-y-2">
+              {technology.defaultBehaviors?.map((behavior: string, index: number) => (
+                <div key={index} className="bg-muted/50 p-2 rounded border">
+                  <h5 className="text-xs font-medium mb-1">{behavior}</h5>
+                  <p className="text-xs text-muted-foreground mb-2">Standard behavior pattern</p>
+                  <Button variant="ghost" size="sm" className="h-6 w-full">
+                    <Eye className="h-3 w-3 mr-1" />
+                    Analyze
+                  </Button>
+                </div>
+              )) || (
+                <div className="text-center text-muted-foreground text-xs py-4">
+                  No default behaviors defined
+                </div>
+              )}
+            </div>
+          </div>
+          <div>
+            <h4 className="font-medium text-sm mb-2">External Resources</h4>
+            <div className="space-y-2">
+              <Button variant="ghost" size="sm" className="h-6 w-full" asChild>
+                <a href={technology.docUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Documentation
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+export default function TechnologiesPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedTechnology, setSelectedTechnology] = useState<any>(null);
+  const [newTechnology, setNewTechnology] = useState({
+    name: "",
+    vendor: "",
+    category: "",
+    docUrl: "",
+    description: "",
+    latestVersion: "",
+    defaultConfigs: "",
+    notes: ""
+  });
+
+  const categories = [...new Set(mockTechnologies.map(t => t.category))];
+  
+  const filteredTechnologies = mockTechnologies.filter(technology => {
+    const matchesSearch = technology.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         technology.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         technology.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         technology.vendor.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || technology.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const handleCreateTechnology = () => {
+    console.log("Creating technology:", newTechnology);
+    setIsCreateDialogOpen(false);
+    setNewTechnology({
+      name: "",
+      vendor: "",
+      category: "",
+      docUrl: "",
+      description: "",
+      latestVersion: "",
+      defaultConfigs: "",
+      notes: ""
+    });
+  };
+
+  const handleViewTechnology = (technology: any) => {
+    setSelectedTechnology(technology);
+  };
+
+  const handleSaveNotes = (content: string) => {
+    console.log("Saving notes for", selectedTechnology.name, ":", content);
+    // Here you would update the technology's notes
+  };
+
+  if (selectedTechnology) {
+    return (
+      <TechnologyDetail
+        technology={selectedTechnology}
+        onClose={() => setSelectedTechnology(null)}
+        onSave={handleSaveNotes}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Technologies</h1>
+          <p className="text-muted-foreground">
+            Manage technology templates and their security configurations
+          </p>
+        </div>
+        
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Technology
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Create New Technology</DialogTitle>
+              <DialogDescription>
+                Define a new technology template for security analysis.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 max-h-[400px] overflow-y-auto">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="name"
+                  value={newTechnology.name}
+                  onChange={(e) => setNewTechnology({ ...newTechnology, name: e.target.value })}
+                  className="col-span-3"
+                  placeholder="e.g., React"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="vendor" className="text-right">
+                  Vendor
+                </Label>
+                <Input
+                  id="vendor"
+                  value={newTechnology.vendor}
+                  onChange={(e) => setNewTechnology({ ...newTechnology, vendor: e.target.value })}
+                  className="col-span-3"
+                  placeholder="e.g., Meta"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="category" className="text-right">
+                  Category
+                </Label>
+                <Input
+                  id="category"
+                  value={newTechnology.category}
+                  onChange={(e) => setNewTechnology({ ...newTechnology, category: e.target.value })}
+                  className="col-span-3"
+                  placeholder="e.g., JavaScript Framework"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="docUrl" className="text-right">
+                  Documentation URL
+                </Label>
+                <Input
+                  id="docUrl"
+                  value={newTechnology.docUrl}
+                  onChange={(e) => setNewTechnology({ ...newTechnology, docUrl: e.target.value })}
+                  className="col-span-3"
+                  placeholder="https://docs.example.com"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="version" className="text-right">
+                  Latest Version
+                </Label>
+                <Input
+                  id="version"
+                  value={newTechnology.latestVersion}
+                  onChange={(e) => setNewTechnology({ ...newTechnology, latestVersion: e.target.value })}
+                  className="col-span-3"
+                  placeholder="e.g., 18.2.0"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="description" className="text-right pt-2">
+                  Description
+                </Label>
+                <Textarea
+                  id="description"
+                  value={newTechnology.description}
+                  onChange={(e) => setNewTechnology({ ...newTechnology, description: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Describe the technology"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="configs" className="text-right pt-2">
+                  Default Configs
+                </Label>
+                <Textarea
+                  id="configs"
+                  value={newTechnology.defaultConfigs}
+                  onChange={(e) => setNewTechnology({ ...newTechnology, defaultConfigs: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Default configuration notes"
+                  rows={4}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="notes" className="text-right pt-2">
+                  Security Notes
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={newTechnology.notes}
+                  onChange={(e) => setNewTechnology({ ...newTechnology, notes: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Security analysis notes"
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleCreateTechnology}>
+                Create Technology
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search technologies..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant={selectedCategory === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedCategory("all")}
+          >
+            All
+          </Button>
+          {categories.map((category) => (
+            <Button
+              key={category}
+              variant={selectedCategory === category ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory(category)}
+            >
+              {category}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredTechnologies.map((technology) => (
+          <Card key={technology.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleViewTechnology(technology)}>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Layers className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-lg">{technology.name}</CardTitle>
+                  </div>
+                  <div className="flex items-center space-x-2 flex-wrap">
+                    <Badge variant="secondary">{technology.category}</Badge>
+                    <Badge variant="outline">v{technology.version}</Badge>
+                    <Badge variant="outline">{technology.latestVersion}</Badge>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewTechnology(technology);
+                    }}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      View Configs
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => e.stopPropagation()}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="mb-4">
+                {technology.description}
+              </CardDescription>
+              
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium text-muted-foreground">Vendor:</span>
+                  <span className="ml-2">{technology.vendor}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-muted-foreground">Latest Version:</span>
+                  <span className="ml-2">{technology.latestVersion}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm text-muted-foreground mt-4">
+                <span>Added {new Date(technology.createdAt).toLocaleDateString()}</span>
+                <div className="flex items-center space-x-1">
+                  {technology.docUrl && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      asChild
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <a href={technology.docUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  )}
+                  <Settings className="h-4 w-4" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredTechnologies.length === 0 && (
+        <div className="text-center py-12">
+          <Layers className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No technologies found</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchTerm || selectedCategory !== "all"
+              ? "Try adjusting your search or filter criteria." 
+              : "Get started by creating your first technology template."}
+          </p>
+          {!searchTerm && selectedCategory === "all" && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Technology
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

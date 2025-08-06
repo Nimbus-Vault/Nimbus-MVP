@@ -1,0 +1,2 @@
+- Never use `npm run dev` for testing, build instead
+- 

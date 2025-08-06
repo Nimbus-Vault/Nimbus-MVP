@@ -1,0 +1,719 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { AttackNoteSpace } from "@/components/ui/attack-note-space";
+import { 
+  Target, 
+  Plus, 
+  Search, 
+  Calendar,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Eye,
+  User,
+  Link,
+  FileText,
+  Settings,
+  Code
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AtomicVulnerability, FlawType } from "@/types";
+import { atomicVulnAdapter } from '@/lib/data-adapter';
+import { toast } from 'sonner';
+const atomicVulns: AtomicVulnerability[] = [
+  {
+    id: "1",
+    workspaceId: "ws-1",
+    title: "Buffer Overflow in Image Processing Library",
+    flawType: FlawType.Implementation,
+    technologyId: "tech-1",
+    detectionExploitationMd: "## Detection\n\nBuffer overflow can be detected by sending oversized image files to the processing endpoint.\n\n## Exploitation\n\n1. Craft malicious image file with oversized header\n2. Upload to `/api/image/upload` endpoint\n3. Monitor for crash or RCE",
+    chainable: true,
+    chainableVulnId: "2",
+    createdBy: "john.doe@example.com",
+    createdAt: "2024-01-15T00:00:00Z"
+  },
+  {
+    id: "2", 
+    workspaceId: "ws-1",
+    title: "SQL Injection in User Search Function",
+    flawType: FlawType.Implementation,
+    technologyId: "tech-2",
+    detectionExploitationMd: "## Detection\n\nSQL injection in search parameter:\n\n```\nGET /api/users/search?q=' OR 1=1--\n```\n\n## Exploitation\n\n```sql\n' UNION SELECT username,password FROM users--\n```",
+    chainable: false,
+    createdBy: "jane.smith@example.com",
+    createdAt: "2024-01-20T00:00:00Z"
+  },
+  {
+    id: "3",
+    workspaceId: "ws-1", 
+    title: "Weak JWT Secret Configuration",
+    flawType: FlawType.Misconfiguration,
+    technologyId: "tech-3",
+    detectionExploitationMd: "## Detection\n\nJWT tokens use weak secret key:\n\n```bash\njohn --wordlist=common.txt jwt.hash\n```\n\n## Exploitation\n\n1. Extract JWT from request\n2. Brute force secret key\n3. Forge admin tokens",
+    chainable: true,
+    chainableVulnId: "1",
+    createdBy: "mike.wilson@example.com",
+    createdAt: "2024-01-25T00:00:00Z"
+  },
+  {
+    id: "4",
+    workspaceId: "ws-1",
+    title: "Directory Traversal in File Download",
+    flawType: FlawType.Implementation,
+    technologyId: "tech-4",
+    detectionExploitationMd: "## Detection\n\nPath traversal vulnerability:\n\n```\nGET /api/files/../../../../etc/passwd\n```\n\n## Exploitation\n\nRetrieve sensitive files:\n- `/etc/passwd`\n- `/etc/shadow`\n- Application config files",
+    chainable: false,
+    createdBy: "sarah.johnson@example.com",
+    createdAt: "2024-02-01T00:00:00Z"
+  },
+  {
+    id: "5",
+    workspaceId: "ws-1",
+    title: "Insecure Deserialization in API",
+    flawType: FlawType.Design,
+    technologyId: "tech-5",
+    detectionExploitationMd: "## Detection\n\nUnsafe deserialization of user input:\n\n```python\nimport pickle\ndata = pickle.loads(request.data)\n```\n\n## Exploitation\n\nCraft malicious serialized payload for RCE",
+    chainable: true,
+    chainableVulnId: "4",
+    createdBy: "alex.brown@example.com",
+    createdAt: "2024-02-05T00:00:00Z"
+  }
+];
+
+const flawTypeColors = {
+  [FlawType.Implementation]: "bg-red-100 text-red-800 border-red-200",
+  [FlawType.Misconfiguration]: "bg-orange-100 text-orange-800 border-orange-200",
+  [FlawType.Design]: "bg-blue-100 text-blue-800 border-blue-200",
+  [FlawType.Logic]: "bg-purple-100 text-purple-800 border-purple-200"
+};
+
+export default function AtomicVulnerabilitiesPage() {
+    const [atomicVulns, setAtomicVulns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadAtomicVulns = async () => {
+    try {
+      setLoading(true);
+      const data = await atomicVulnAdapter.getAll();
+      setAtomicVulns(data);
+    } catch (error) {
+      console.error('Failed to load atomicVulns:', error);
+      toast.error('Failed to load atomicVulns');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAtomicVulns();
+  }, []);
+
+  const handleCreateAtomicVuln = async () => {
+    try {
+      await atomicVulnAdapter.create(newAtomicVuln);
+      toast.success('Created successfully');
+      loadAtomicVulns();
+      setIsCreateDialogOpen(false);
+      setNewAtomicVuln({
+        title: "",
+        flawType: FlawType.Implementation,
+        technologyId: "",
+        detectionExploitationMd: "",
+        chainable: false,
+        chainableVulnId: ""
+      });
+    } catch (error) {
+      console.error('Failed to create:', error);
+      toast.error('Failed to create');
+    }
+  };
+
+  const handleUpdateAtomicVuln = async (id: string, updates: any) => {
+    try {
+      await atomicVulnAdapter.update(id, updates);
+      toast.success('Updated successfully');
+      loadAtomicVulns();
+      setIsEditDialogOpen(false);
+      setEditingVuln(null);
+    } catch (error) {
+      console.error('Failed to update:', error);
+      toast.error('Failed to update');
+    }
+  };
+
+  const handleDeleteAtomicVuln = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      try {
+        await atomicVulnAdapter.delete(id);
+        toast.success('Deleted successfully');
+        loadAtomicVulns();
+      } catch (error) {
+        console.error('Failed to delete:', error);
+        toast.error('Failed to delete');
+      }
+    }
+  };
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [flawTypeFilter, setFlawTypeFilter] = useState<string>("all");
+  const [chainableFilter, setChainableFilter] = useState<string>("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedVuln, setSelectedVuln] = useState<AtomicVulnerability | null>(null);
+  const [vulnInNoteSpace, setVulnInNoteSpace] = useState<any>(null);
+  const [editingVuln, setEditingVuln] = useState<any>(null);
+  const [newAtomicVuln, setNewAtomicVuln] = useState({
+    title: "",
+    flawType: FlawType.Implementation,
+    technologyId: "",
+    detectionExploitationMd: "",
+    chainable: false,
+    chainableVulnId: ""
+  });
+
+  const filteredVulns = atomicVulns.filter(vuln => {
+    const matchesSearch = vuln.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         vuln.detectionExploitationMd?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         vuln.createdBy?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFlawType = flawTypeFilter === "all" || vuln.flawType === flawTypeFilter;
+    const matchesChainable = chainableFilter === "all" || 
+                            (chainableFilter === "chainable" && vuln.chainable) ||
+                            (chainableFilter === "standalone" && !vuln.chainable);
+    return matchesSearch && matchesFlawType && matchesChainable;
+  });
+
+
+  const handleEditVuln = (vuln: any) => {
+    setEditingVuln({ ...vuln });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateVuln = () => {
+    if (editingVuln) {
+      handleUpdateAtomicVuln(editingVuln.id, editingVuln);
+    }
+  };
+
+  const handleDeleteVuln = (vulnId: string) => {
+    handleDeleteAtomicVuln(vulnId);
+  };
+
+  const handleOpenNoteSpace = (vuln: any) => {
+    setVulnInNoteSpace(vuln);
+  };
+
+  const handleSaveInNoteSpace = (updatedVuln: any) => {
+    handleUpdateAtomicVuln(updatedVuln.id, updatedVuln);
+  };
+
+  const handleViewDetails = (vuln: AtomicVulnerability) => {
+    setSelectedVuln(vuln);
+  };
+
+  const flawTypeOptions = Object.values(FlawType);
+
+  return (
+    <div className="flex flex-col space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Atomic Vulnerabilities</h1>
+          <p className="text-muted-foreground">
+            Manage specific implementation vulnerabilities that can be precisely identified and exploited
+          </p>
+        </div>
+        
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Atomic Vulnerability
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create Atomic Vulnerability</DialogTitle>
+              <DialogDescription>
+                Document a specific vulnerability that can be precisely identified in code or configuration.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="title"
+                  value={newAtomicVuln.title}
+                  onChange={(e) => setNewAtomicVuln({ ...newAtomicVuln, title: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Vulnerability title"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="flawType" className="text-right">
+                  Flaw Type
+                </Label>
+                <Select value={newAtomicVuln.flawType} onValueChange={(value) => setNewAtomicVuln({ ...newAtomicVuln, flawType: value as FlawType })}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {flawTypeOptions.map(type => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="technology" className="text-right">
+                  Technology
+                </Label>
+                <Input
+                  id="technology"
+                  value={newAtomicVuln.technologyId}
+                  onChange={(e) => setNewAtomicVuln({ ...newAtomicVuln, technologyId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated technology"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="detectionExploitation" className="text-right pt-2">
+                  Detection & Exploitation
+                </Label>
+                <Textarea
+                  id="detectionExploitation"
+                  value={newAtomicVuln.detectionExploitationMd}
+                  onChange={(e) => setNewAtomicVuln({ ...newAtomicVuln, detectionExploitationMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Detailed detection and exploitation steps (Markdown supported)"
+                  rows={8}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="chainable" className="text-right">
+                  Chainable
+                </Label>
+                <div className="col-span-3 flex items-center space-x-2">
+                  <Switch
+                    id="chainable"
+                    checked={newAtomicVuln.chainable}
+                    onCheckedChange={(checked) => setNewAtomicVuln({ ...newAtomicVuln, chainable: checked })}
+                  />
+                  <Label htmlFor="chainable" className="text-sm">Can be chained with other vulnerabilities</Label>
+                </div>
+              </div>
+              {newAtomicVuln.chainable && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="chainableVuln" className="text-right">
+                    Chain With
+                  </Label>
+                  <Input
+                    id="chainableVuln"
+                    value={newAtomicVuln.chainableVulnId}
+                    onChange={(e) => setNewAtomicVuln({ ...newAtomicVuln, chainableVulnId: e.target.value })}
+                    className="col-span-3"
+                    placeholder="ID of vulnerability this chains with"
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleCreateAtomicVuln}>
+                Create Atomic Vulnerability
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search atomic vulnerabilities..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Select value={flawTypeFilter} onValueChange={setFlawTypeFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="All Flaw Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Flaw Types</SelectItem>
+            {flawTypeOptions.map(type => (
+              <SelectItem key={type} value={type}>{type}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={chainableFilter} onValueChange={setChainableFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="chainable">Chainable</SelectItem>
+            <SelectItem value="standalone">Standalone</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {filteredVulns.map((vuln) => (
+          <Card key={vuln.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleViewDetails(vuln)}>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Target className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-lg">{vuln.title}</CardTitle>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className={flawTypeColors[vuln.flawType]}>
+                      {vuln.flawType}
+                    </Badge>
+                    {vuln.chainable && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Link className="mr-1 h-3 w-3" />
+                        Chainable
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenNoteSpace(vuln); }}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Open Note Space
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewDetails(vuln); }}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditVuln(vuln); }}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteVuln(vuln.id); }}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {vuln.technologyId && (
+                  <div className="text-sm">
+                    <span className="font-medium">Technology:</span> {vuln.technologyId}
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center space-x-1">
+                    <User className="h-3 w-3" />
+                    <span>{vuln.createdBy}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>{new Date(vuln.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                {vuln.chainableVulnId && (
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Link className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Chains with: {vuln.chainableVulnId}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredVulns.length === 0 && (
+        <div className="text-center py-12">
+          <Target className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No atomic vulnerabilities found</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchTerm || flawTypeFilter !== "all" || chainableFilter !== "all"
+              ? "Try adjusting your search or filter criteria." 
+              : "Get started by documenting your first atomic vulnerability."}
+          </p>
+          {!searchTerm && flawTypeFilter === "all" && chainableFilter === "all" && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Atomic Vulnerability
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Detail View Dialog */}
+      {selectedVuln && (
+        <Dialog open={!!selectedVuln} onOpenChange={() => setSelectedVuln(null)}>
+          <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Target className="h-5 w-5" />
+                <span>{selectedVuln.title}</span>
+              </DialogTitle>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className={flawTypeColors[selectedVuln.flawType]}>
+                  {selectedVuln.flawType}
+                </Badge>
+                {selectedVuln.chainable && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Link className="mr-1 h-3 w-3" />
+                    Chainable
+                  </Badge>
+                )}
+              </div>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {selectedVuln.technologyId && (
+                <div>
+                  <Label className="text-sm font-medium">Associated Technology</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedVuln.technologyId}</p>
+                </div>
+              )}
+
+              {selectedVuln.detectionExploitationMd && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center space-x-2">
+                    <FileText className="h-4 w-4" />
+                    <span>Detection & Exploitation</span>
+                  </Label>
+                  <div className="border rounded-lg p-4 bg-muted/30 whitespace-pre-wrap text-sm">
+                    {selectedVuln.detectionExploitationMd}
+                  </div>
+                </div>
+              )}
+
+              {selectedVuln.chainableVulnId && (
+                <div>
+                  <Label className="text-sm font-medium">Chainable Vulnerability</Label>
+                  <p className="text-sm text-muted-foreground mt-1">ID: {selectedVuln.chainableVulnId}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <Label className="text-sm font-medium">Created By</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedVuln.createdBy}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Created Date</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {new Date(selectedVuln.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Atomic Vulnerability</DialogTitle>
+            <DialogDescription>
+              Update the atomic vulnerability details.
+            </DialogDescription>
+          </DialogHeader>
+          {editingVuln && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="edit-title"
+                  value={editingVuln.title}
+                  onChange={(e) => setEditingVuln({ ...editingVuln, title: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Vulnerability title"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-flawType" className="text-right">
+                  Flaw Type
+                </Label>
+                <Select value={editingVuln.flawType} onValueChange={(value) => setEditingVuln({ ...editingVuln, flawType: value as FlawType })}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {flawTypeOptions.map(type => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-technology" className="text-right">
+                  Technology
+                </Label>
+                <Input
+                  id="edit-technology"
+                  value={editingVuln.technologyId}
+                  onChange={(e) => setEditingVuln({ ...editingVuln, technologyId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated technology"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="edit-detectionExploitation" className="text-right pt-2">
+                  Detection & Exploitation
+                </Label>
+                <Textarea
+                  id="edit-detectionExploitation"
+                  value={editingVuln.detectionExploitationMd}
+                  onChange={(e) => setEditingVuln({ ...editingVuln, detectionExploitationMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Detailed detection and exploitation steps (Markdown supported)"
+                  rows={8}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-chainable" className="text-right">
+                  Chainable
+                </Label>
+                <div className="col-span-3 flex items-center space-x-2">
+                  <Switch
+                    id="edit-chainable"
+                    checked={editingVuln.chainable}
+                    onCheckedChange={(checked) => setEditingVuln({ ...editingVuln, chainable: checked })}
+                  />
+                  <Label htmlFor="edit-chainable" className="text-sm">Can be chained with other vulnerabilities</Label>
+                </div>
+              </div>
+              {editingVuln.chainable && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-chainableVuln" className="text-right">
+                    Chain With
+                  </Label>
+                  <Input
+                    id="edit-chainableVuln"
+                    value={editingVuln.chainableVulnId || ''}
+                    onChange={(e) => setEditingVuln({ ...editingVuln, chainableVulnId: e.target.value })}
+                    className="col-span-3"
+                    placeholder="ID of vulnerability this chains with"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="submit" onClick={handleUpdateVuln}>
+              Update Atomic Vulnerability
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Attack Note Space */}
+      {vulnInNoteSpace && (
+        <AttackNoteSpace
+          entity={vulnInNoteSpace}
+          entityType="atomic-vulnerability"
+          onSave={handleSaveInNoteSpace}
+          onClose={() => setVulnInNoteSpace(null)}
+          showLeftSidebar={true}
+          showRightSidebar={true}
+          leftSidebarTitle="Related Technologies"
+          rightSidebarTitle="Exploitation Details"
+          leftSidebarContent={
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Affected Technologies</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Technology
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="secondary" className="text-xs">C/C++ Libraries</Badge>
+                    <Badge variant="secondary" className="text-xs">ImageMagick</Badge>
+                    <Badge variant="secondary" className="text-xs">libpng</Badge>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Code Patterns</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Pattern
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="text-xs">Buffer Operations</Badge>
+                    <Badge variant="outline" className="text-xs">Memory Allocation</Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+          rightSidebarContent={
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Exploitation Techniques</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Technique
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="secondary" className="text-xs">ROP Chains</Badge>
+                    <Badge variant="secondary" className="text-xs">Shellcode Injection</Badge>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Proof of Concepts</h4>
+                <div className="space-y-2">
+                  <Card className="p-2">
+                    <p className="text-xs">Buffer Overflow PoC</p>
+                    <Button variant="ghost" size="sm" className="h-6 w-full mt-1">
+                      <Code className="h-3 w-3 mr-1" />
+                      View Code
+                    </Button>
+                  </Card>
+                  <Card className="p-2">
+                    <p className="text-xs">Exploit Chain</p>
+                    <Button variant="ghost" size="sm" className="h-6 w-full mt-1">
+                      <FileText className="h-3 w-3 mr-1" />
+                      View Details
+                    </Button>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          }
+        />
+      )}
+    </div>
+  );
+}

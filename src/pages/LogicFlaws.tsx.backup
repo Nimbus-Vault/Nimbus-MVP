@@ -1,0 +1,717 @@
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { AttackNoteSpace } from "@/components/ui/attack-note-space";
+import { 
+  Lightbulb, 
+  Plus, 
+  Search, 
+  Calendar,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Eye,
+  User,
+  FileText,
+  AlertCircle,
+  Link,
+  Code
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { LogicFlaw } from "@/types";
+
+// Mock data for logic flaws
+const mockLogicFlaws: LogicFlaw[] = [
+  {
+    id: "1",
+    workspaceId: "ws-1",
+    title: "Race Condition in User Registration",
+    functionalityId: "func-1",
+    technologyId: "tech-1",
+    workflowDiagramMd: "## Workflow Diagram\n\n```\nUser Input → Registration API → Database Check → User Creation\n                     ↓                    ↓\n               Race Condition          No Proper Locking\n```",
+    detectionTestsMd: "## Detection Tests\n\n1. **Concurrent Registration Test**:\n   ```bash\n   # Terminal 1\n   curl -X POST /api/register -d 'email=victim@example.com&password=hacker1'\n   \n   # Terminal 2 (execute simultaneously)\n   curl -X POST /api/register -d 'email=victim@example.com&password=hacker2'\n   ```\n\n2. **Database Verification**:\n   ```sql\n   SELECT COUNT(*) FROM users WHERE email = 'victim@example.com';\n   ```\n\n3. **Login Verification**:\n   Test login with both passwords to confirm duplicate accounts.",
+    chainable: true,
+    chainableVulnId: "2",
+    createdBy: "alice.security@example.com",
+    createdAt: "2024-01-10T00:00:00Z"
+  },
+  {
+    id: "2",
+    workspaceId: "ws-1",
+    title: "Business Logic Bypass in Payment Flow",
+    functionalityId: "func-2",
+    technologyId: "tech-2",
+    workflowDiagramMd: "## Payment Flow\n\n```\nClient → Payment Form → Client Validation → Server Processing → Payment Gateway\n   ↓           ↓              ↓                   ↓\nUser Input   JavaScript     BYPASS HERE     Database Update\n```",
+    detectionTestsMd: "## Detection Tests\n\n1. **Intercept Payment Request**:\n   Use Burp Suite or OWASP ZAP to capture payment requests.\n\n2. **Modify Payment Amount**:\n   ```json\n   {\n     \"item_id\": \"premium_plan\",\n     \"amount\": 0.01,\n     \"currency\": \"USD\"\n   }\n   ```\n\n3. **Verify Bypass**:\n   Check if modified payment is processed successfully.",
+    chainable: false,
+    createdBy: "bob.researcher@example.com",
+    createdAt: "2024-01-15T00:00:00Z"
+  },
+  {
+    id: "3",
+    workspaceId: "ws-1",
+    title: "Privilege Escalation via Role Assignment",
+    functionalityId: "func-3",
+    technologyId: "tech-3",
+    workflowDiagramMd: "## Role Assignment Workflow\n\n```\nUser Request → Client Validation → Server Processing → Database Update\n      ↓              ↓                    ↓                ↓\nRole Change     JavaScript         BYPASS POINT     Role Updated\n```",
+    detectionTestsMd: "## Detection Tests\n\n1. **Role Change Request Test**:\n   Monitor network requests during legitimate role changes\n\n2. **Direct API Test**:\n   ```javascript\n   fetch('/api/users/123/roles', {\n     method: 'PUT',\n     body: JSON.stringify({\n       'user_id': 123,\n       'roles': ['admin', 'super_user']\n     })\n   });\n   ```\n\n3. **Privilege Verification**:\n   Test access to admin functionality after role change.",
+    chainable: false,
+    createdBy: "charlie.pentester@example.com",
+    createdAt: "2024-01-20T00:00:00Z"
+  },
+  {
+    id: "4",
+    workspaceId: "ws-1",
+    title: "Order Processing Logic Flaw",
+    functionalityId: "func-4",
+    technologyId: "tech-4",
+    workflowDiagramMd: "## Order Processing Flow\n\n```\nOrder Request → Inventory Check → Payment Processing → Order Confirmation\n      ↓               ↓                     ↓                  ↓\nUser Input    RACE CONDITION         Success             Oversold Item\n```",
+    detectionTestsMd: "## Detection Tests\n\n1. **Concurrent Order Test**:\n   Create simultaneous orders for limited inventory\n\n2. **Inventory Validation**:\n   ```bash\n   for i in {1..10}; do\n     curl -X POST /api/orders -H 'Authorization: Bearer $TOKEN' \\\n       -d '{\"product_id\": \"limited_item\", \"quantity\": 5}' &\n   done\n   wait\n   ```\n\n3. **Verify Overselling**:\n   Check if inventory goes negative and orders still succeed.",
+    chainable: true,
+    chainableVulnId: "1",
+    createdBy: "diana.analyst@example.com",
+    createdAt: "2024-01-25T00:00:00Z"
+  },
+  {
+    id: "5",
+    workspaceId: "ws-1",
+    title: "Authentication Bypass in Password Reset",
+    functionalityId: "func-5",
+    technologyId: "tech-5",
+    workflowDiagramMd: "## Password Reset Workflow\n\n```\nReset Request → Token Generation → Email Sent → Token Validation → Password Update\n      ↓               ↓                 ↓            ↓                 ↓\nUser Email      Sequential Token     User Inbox   NO VALIDATION    Account Taken\n```",
+    detectionTestsMd: "## Detection Tests\n\n1. **Token Generation Test**:\n   ```bash\n   curl -X POST /api/auth/forgot-password -d 'email=attacker@example.com'\n   ```\n\n2. **Token Pattern Analysis**:\n   Extract and analyze token patterns (sequential, predictable)\n\n3. **Cross-User Reset Test**:\n   ```bash\n   curl -X POST /api/auth/reset-password \\\n     -d 'token=ABC124&new_password=hacked123' \\\n     -d 'email=victim@example.com'\n   ```\n\n4. **Account Takeover Verification**:\n   Login with victim credentials using new password.",
+    chainable: false,
+    createdBy: "eve.security@example.com",
+    createdAt: "2024-02-01T00:00:00Z"
+  }
+];
+
+export default function LogicFlawsPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [chainableFilter, setChainableFilter] = useState<string>("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedFlaw, setSelectedFlaw] = useState<LogicFlaw | null>(null);
+  const [flawInNoteSpace, setFlawInNoteSpace] = useState<LogicFlaw | null>(null);
+  const [editingFlaw, setEditingFlaw] = useState<any>(null);
+  const [newLogicFlaw, setNewLogicFlaw] = useState({
+    title: "",
+    functionalityId: "",
+    technologyId: "",
+    workflowDiagramMd: "",
+    detectionTestsMd: "",
+    chainable: false,
+    chainableVulnId: ""
+  });
+
+  const filteredFlaws = mockLogicFlaws.filter(flaw => {
+    const matchesSearch = flaw.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         flaw.workflowDiagramMd?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         flaw.detectionTestsMd?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         flaw.createdBy?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesChainable = chainableFilter === "all" || 
+                            (chainableFilter === "chainable" && flaw.chainable) ||
+                            (chainableFilter === "standalone" && !flaw.chainable);
+    return matchesSearch && matchesChainable;
+  });
+
+  const handleCreateLogicFlaw = () => {
+    console.log("Creating logic flaw:", newLogicFlaw);
+    // In real implementation, this would make an API call
+    mockLogicFlaws.push({
+      id: (mockLogicFlaws.length + 1).toString(),
+      workspaceId: "ws-1",
+      ...newLogicFlaw,
+      createdBy: "current.user@example.com",
+      createdAt: new Date().toISOString()
+    } as LogicFlaw);
+    setIsCreateDialogOpen(false);
+    setNewLogicFlaw({
+      title: "",
+      functionalityId: "",
+      technologyId: "",
+      workflowDiagramMd: "",
+      detectionTestsMd: "",
+      chainable: false,
+      chainableVulnId: ""
+    });
+  };
+
+  const handleEditFlaw = (flaw: LogicFlaw) => {
+    setEditingFlaw({ ...flaw });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateFlaw = () => {
+    console.log("Updating logic flaw:", editingFlaw);
+    // In real implementation, this would make an API call
+    const index = mockLogicFlaws.findIndex(f => f.id === editingFlaw.id);
+    if (index !== -1) {
+      mockLogicFlaws[index] = editingFlaw;
+    }
+    setIsEditDialogOpen(false);
+    setEditingFlaw(null);
+  };
+
+  const handleDeleteFlaw = (flawId: string) => {
+    if (window.confirm('Are you sure you want to delete this logic flaw?')) {
+      console.log("Deleting logic flaw:", flawId);
+      // In real implementation, this would make an API call
+      const index = mockLogicFlaws.findIndex(f => f.id === flawId);
+      if (index !== -1) {
+        mockLogicFlaws.splice(index, 1);
+      }
+    }
+  };
+
+  const handleOpenNoteSpace = (flaw: LogicFlaw) => {
+    setFlawInNoteSpace(flaw);
+  };
+
+  const handleSaveInNoteSpace = (updatedFlaw: LogicFlaw) => {
+    console.log("Saving in note space:", updatedFlaw);
+    // In real implementation, this would make an API call
+    const index = mockLogicFlaws.findIndex(f => f.id === updatedFlaw.id);
+    if (index !== -1) {
+      mockLogicFlaws[index] = updatedFlaw;
+    }
+  };
+
+  const handleViewDetails = (flaw: LogicFlaw) => {
+    setSelectedFlaw(flaw);
+  };
+
+  return (
+    <div className="flex flex-col space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Logic Flaws</h1>
+          <p className="text-muted-foreground">
+            Manage business logic vulnerabilities and workflow bypasses that exploit application reasoning flaws
+          </p>
+        </div>
+        
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Logic Flaw
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create Logic Flaw</DialogTitle>
+              <DialogDescription>
+                Document a business logic vulnerability or workflow bypass that exploits flawed application reasoning.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="title"
+                  value={newLogicFlaw.title}
+                  onChange={(e) => setNewLogicFlaw({ ...newLogicFlaw, title: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Logic flaw title"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="functionality" className="text-right">
+                  Functionality
+                </Label>
+                <Input
+                  id="functionality"
+                  value={newLogicFlaw.functionalityId}
+                  onChange={(e) => setNewLogicFlaw({ ...newLogicFlaw, functionalityId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated functionality ID"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="technology" className="text-right">
+                  Technology
+                </Label>
+                <Input
+                  id="technology"
+                  value={newLogicFlaw.technologyId}
+                  onChange={(e) => setNewLogicFlaw({ ...newLogicFlaw, technologyId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated technology ID"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="workflow" className="text-right pt-2">
+                  Workflow Diagram
+                </Label>
+                <Textarea
+                  id="workflow"
+                  value={newLogicFlaw.workflowDiagramMd}
+                  onChange={(e) => setNewLogicFlaw({ ...newLogicFlaw, workflowDiagramMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Workflow diagram in Markdown format"
+                  rows={6}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="detection" className="text-right pt-2">
+                  Detection Tests
+                </Label>
+                <Textarea
+                  id="detection"
+                  value={newLogicFlaw.detectionTestsMd}
+                  onChange={(e) => setNewLogicFlaw({ ...newLogicFlaw, detectionTestsMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Detection tests in Markdown format"
+                  rows={8}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="chainable" className="text-right">
+                  Chainable
+                </Label>
+                <div className="col-span-3 flex items-center space-x-2">
+                  <Switch
+                    id="chainable"
+                    checked={newLogicFlaw.chainable}
+                    onCheckedChange={(checked) => setNewLogicFlaw({ ...newLogicFlaw, chainable: checked })}
+                  />
+                  <Label htmlFor="chainable" className="text-sm">Can be chained with other vulnerabilities</Label>
+                </div>
+              </div>
+              {newLogicFlaw.chainable && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="chainableVuln" className="text-right">
+                    Chain With
+                  </Label>
+                  <Input
+                    id="chainableVuln"
+                    value={newLogicFlaw.chainableVulnId}
+                    onChange={(e) => setNewLogicFlaw({ ...newLogicFlaw, chainableVulnId: e.target.value })}
+                    className="col-span-3"
+                    placeholder="ID of vulnerability this chains with"
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleCreateLogicFlaw}>
+                Create Logic Flaw
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search logic flaws..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <select 
+          value={chainableFilter} 
+          onChange={(e) => setChainableFilter(e.target.value)}
+          className="px-3 py-2 border rounded-md"
+        >
+          <option value="all">All Types</option>
+          <option value="chainable">Chainable</option>
+          <option value="standalone">Standalone</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        {filteredFlaws.map((flaw) => (
+          <Card key={flaw.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleViewDetails(flaw)}>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Lightbulb className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-lg">{flaw.title}</CardTitle>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <AlertCircle className="mr-1 h-3 w-3" />
+                      Business Logic
+                    </Badge>
+                    {flaw.chainable && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Link className="mr-1 h-3 w-3" />
+                        Chainable
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenNoteSpace(flaw); }}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Open Note Space
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditFlaw(flaw); }}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteFlaw(flaw.id); }}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {flaw.functionalityId && (
+                  <div className="text-sm">
+                    <span className="font-medium">Functionality:</span> {flaw.functionalityId}
+                  </div>
+                )}
+                {flaw.technologyId && (
+                  <div className="text-sm">
+                    <span className="font-medium">Technology:</span> {flaw.technologyId}
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center space-x-1">
+                    <User className="h-3 w-3" />
+                    <span>{flaw.createdBy}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>{new Date(flaw.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                {flaw.chainableVulnId && (
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Link className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Chains with: {flaw.chainableVulnId}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredFlaws.length === 0 && (
+        <div className="text-center py-12">
+          <Lightbulb className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No logic flaws found</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchTerm || chainableFilter !== "all"
+              ? "Try adjusting your search or filter criteria." 
+              : "Get started by documenting your first business logic vulnerability."}
+          </p>
+          {!searchTerm && chainableFilter === "all" && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Logic Flaw
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Detail View Dialog */}
+      {selectedFlaw && (
+        <Dialog open={!!selectedFlaw} onOpenChange={() => setSelectedFlaw(null)}>
+          <DialogContent className="sm:max-w-[900px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Lightbulb className="h-5 w-5" />
+                <span>{selectedFlaw.title}</span>
+              </DialogTitle>
+              <div className="flex items-center space-x-2">
+                <Badge variant="secondary" className="text-xs">
+                  <AlertCircle className="mr-1 h-3 w-3" />
+                  Business Logic
+                </Badge>
+                {selectedFlaw.chainable && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Link className="mr-1 h-3 w-3" />
+                    Chainable
+                  </Badge>
+                )}
+              </div>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {(selectedFlaw.functionalityId || selectedFlaw.technologyId) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedFlaw.functionalityId && (
+                    <div>
+                      <Label className="text-sm font-medium">Associated Functionality</Label>
+                      <p className="text-sm text-muted-foreground mt-1">{selectedFlaw.functionalityId}</p>
+                    </div>
+                  )}
+                  {selectedFlaw.technologyId && (
+                    <div>
+                      <Label className="text-sm font-medium">Associated Technology</Label>
+                      <p className="text-sm text-muted-foreground mt-1">{selectedFlaw.technologyId}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedFlaw.workflowDiagramMd && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center space-x-2">
+                    <Code className="h-4 w-4" />
+                    <span>Workflow Diagram</span>
+                  </Label>
+                  <div className="border rounded-lg p-4 bg-muted/30 whitespace-pre-wrap text-sm">
+                    {selectedFlaw.workflowDiagramMd}
+                  </div>
+                </div>
+              )}
+
+              {selectedFlaw.detectionTestsMd && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center space-x-2">
+                    <FileText className="h-4 w-4" />
+                    <span>Detection Tests</span>
+                  </Label>
+                  <div className="border rounded-lg p-4 bg-muted/30 whitespace-pre-wrap text-sm">
+                    {selectedFlaw.detectionTestsMd}
+                  </div>
+                </div>
+              )}
+
+              {selectedFlaw.chainableVulnId && (
+                <div>
+                  <Label className="text-sm font-medium">Chainable Vulnerability</Label>
+                  <p className="text-sm text-muted-foreground mt-1">ID: {selectedFlaw.chainableVulnId}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <Label className="text-sm font-medium">Created By</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedFlaw.createdBy}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Created Date</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {new Date(selectedFlaw.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Dialog */}
+      {editingFlaw && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Logic Flaw</DialogTitle>
+              <DialogDescription>
+                Update the logic flaw details.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="edit-title"
+                  value={editingFlaw.title}
+                  onChange={(e) => setEditingFlaw({ ...editingFlaw, title: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Logic flaw title"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-functionality" className="text-right">
+                  Functionality
+                </Label>
+                <Input
+                  id="edit-functionality"
+                  value={editingFlaw.functionalityId}
+                  onChange={(e) => setEditingFlaw({ ...editingFlaw, functionalityId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated functionality ID"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-technology" className="text-right">
+                  Technology
+                </Label>
+                <Input
+                  id="edit-technology"
+                  value={editingFlaw.technologyId}
+                  onChange={(e) => setEditingFlaw({ ...editingFlaw, technologyId: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Associated technology ID"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="edit-workflow" className="text-right pt-2">
+                  Workflow Diagram
+                </Label>
+                <Textarea
+                  id="edit-workflow"
+                  value={editingFlaw.workflowDiagramMd}
+                  onChange={(e) => setEditingFlaw({ ...editingFlaw, workflowDiagramMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Workflow diagram in Markdown format"
+                  rows={6}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="edit-detection" className="text-right pt-2">
+                  Detection Tests
+                </Label>
+                <Textarea
+                  id="edit-detection"
+                  value={editingFlaw.detectionTestsMd}
+                  onChange={(e) => setEditingFlaw({ ...editingFlaw, detectionTestsMd: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Detection tests in Markdown format"
+                  rows={8}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-chainable" className="text-right">
+                  Chainable
+                </Label>
+                <div className="col-span-3 flex items-center space-x-2">
+                  <Switch
+                    id="edit-chainable"
+                    checked={editingFlaw.chainable}
+                    onCheckedChange={(checked) => setEditingFlaw({ ...editingFlaw, chainable: checked })}
+                  />
+                  <Label htmlFor="edit-chainable" className="text-sm">Can be chained with other vulnerabilities</Label>
+                </div>
+              </div>
+              {editingFlaw.chainable && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-chainableVuln" className="text-right">
+                    Chain With
+                  </Label>
+                  <Input
+                    id="edit-chainableVuln"
+                    value={editingFlaw.chainableVulnId || ""}
+                    onChange={(e) => setEditingFlaw({ ...editingFlaw, chainableVulnId: e.target.value })}
+                    className="col-span-3"
+                    placeholder="ID of vulnerability this chains with"
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleUpdateFlaw}>
+                Update Logic Flaw
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Attack Note Space */}
+      {flawInNoteSpace && (
+        <AttackNoteSpace
+          entity={flawInNoteSpace}
+          entityType="logicFlaw"
+          onSave={handleSaveInNoteSpace}
+          onClose={() => setFlawInNoteSpace(null)}
+          showLeftSidebar={true}
+          showRightSidebar={true}
+          leftSidebarTitle="Workflow & Detection"
+          rightSidebarTitle="Suggestions"
+          leftSidebarContent={
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Associated Components</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Functionality
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Technology
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="secondary" className="text-xs">User Registration</Badge>
+                    <Badge variant="secondary" className="text-xs">Database Layer</Badge>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Testing Scenarios</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Plus className="h-3 w-3 mr-2" />
+                    Add Test Scenario
+                  </Button>
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="text-xs">Race Condition</Badge>
+                    <Badge variant="outline" className="text-xs">Concurrent Access</Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+          rightSidebarContent={
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Related Logic Flaws</h4>
+                <div className="space-y-2">
+                  <Card className="p-2">
+                    <p className="text-xs">Payment Bypass Logic</p>
+                    <Button variant="ghost" size="sm" className="h-6 w-full mt-1">
+                      View
+                    </Button>
+                  </Card>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Suggested Techniques</h4>
+                <div className="space-y-2">
+                  <Card className="p-2">
+                    <p className="text-xs">Business Logic Testing</p>
+                    <Button variant="ghost" size="sm" className="h-6 w-full mt-1">
+                      View
+                    </Button>
+                  </Card>
+                  <Card className="p-2">
+                    <p className="text-xs">Race Condition Testing</p>
+                    <Button variant="ghost" size="sm" className="h-6 w-full mt-1">
+                      View
+                    </Button>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          }
+        />
+      )}
+    </div>
+  );
+}

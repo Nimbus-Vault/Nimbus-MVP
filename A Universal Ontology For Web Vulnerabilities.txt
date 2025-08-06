@@ -1,0 +1,159 @@
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: '#e3f2fd'
+---
+flowchart LR
+ subgraph Context["===Context==="]
+        Tech["Technology"]
+        Func["Functionality"]
+  end
+ subgraph Flaws["===Flaws==="]
+        ConfigErrors["Configuration Errors"]
+        DesignMistakes["Design Mistakes"]
+        ImplFlaws["Implementation Flaws"]
+        SpecFlaws["Specification Flaws"]
+  end
+ subgraph Vulnerabilities["===Vulnerabilities==="]
+        AtomicVulns["Atomic Vulnerabilities"]
+        LogicFlaws["Logic Flaws"]
+        PatternDrivenVulns["Pattern-Driven Vulnerabilities"]
+  end
+ subgraph VulnerabilityClasses["===Vulnerability Classes==="]
+        VC1["SQL Injection"]
+        VC2["File-Upload RCE"]
+  end
+ subgraph Methodologies["===Methodologies==="]
+        M1["Standard SQLi Audit"]
+        M2["File-Upload RCE Workflow"]
+  end
+ subgraph AttackVectors["===Attack Vectors==="]
+        AV1["Unsanitized Parameters"]
+        AV2["Blind Injection Channels"]
+        AV3["Unsafe File Parsers"]
+        AV4["Extension Bypass"]
+  end
+ subgraph Techniques["===Techniques==="]
+        T1["Error-Based Injection"]
+        T2["Boolean-Based Blind"]
+        T3["Time-Delay Probes"]
+        T4["Double-Extension Fuzzing"]
+        T5["Magic-Bytes Override"]
+        T6["Content-Type Mismatch"]
+        T7["Null-Byte Truncation"]
+  end
+ subgraph Payloads["===Payloads==="]
+        P1@{ label: "' OR 1=1; EXEC xp_cmdshell('cmd.exe')--" }
+        P2@{ label: "' AND (SELECT SUBSTRING(password,1,1) FROM users)='a'--" }
+        P3@{ label: "'; IF SYSTEM_USER='sa' WAITFOR DELAY '0:0:10'--" }
+        P4["shell.php.jpg"]
+        P5["GIF89a/*"]
+        P6["Content-Type: image/png (uploads .php)"]
+        P7["cmd.php\x00.jpg"]
+  end
+ subgraph PatternDrivenExploitation["Pattern-Driven Exploitation (eg SQLi & File upload Bypass)"]
+        Spacer1[" "]
+        Spacer2[" "]
+        Spacer3[" "]
+        VulnerabilityClasses
+        Methodologies
+        AttackVectors
+        Techniques
+        Payloads
+  end
+ subgraph NonPatternDrivenExploitation["===Non Pattern Driven Exploitation==="]
+        DirectExploitation["Direct Exploitation"]
+        MaliciousUseCases["Malicious Use Cases"]
+  end
+ subgraph ExploitationPaths["===Exploitation Paths==="]
+        PatternDrivenExploitation
+        NonPatternDrivenExploitation
+  end
+    Tech -- configured --> ConfigErrors
+    Func -- designed --> DesignMistakes
+    Func -- implemented --> ImplFlaws
+    Tech -- ambiguous spec --> SpecFlaws
+    ConfigErrors -- leads to --> AtomicVulns
+    DesignMistakes -- leads to --> LogicFlaws
+    ImplFlaws -- leads to --> PatternDrivenVulns
+    SpecFlaws -- leads to --> LogicFlaws
+    LogicFlaws -- exploited via --> MaliciousUseCases
+    MaliciousUseCases --> Exploitation["Exploitation"]
+    Tech -- enables --> VC1 & VC2
+    Func -- exposes --> VC1 & VC2
+    PatternDrivenVulns --> VC1 & VC2
+    VC1 --> M1
+    VC2 --> M2
+    M1 --> AV1 & AV2
+    M2 --> AV3 & AV4
+    AV1 --> T1 & T2
+    AV2 --> T3
+    AV3 --> T4 & T5
+    AV4 --> T6 & T7
+    T1 --> P1
+    T2 --> P2
+    T3 --> P3
+    T4 --> P4
+    T5 --> P5
+    T6 --> P6
+    T7 --> P7
+    P1 --> Exploitation
+    P2 --> Exploitation
+    P3 --> Exploitation
+    P4 --> Exploitation
+    P5 --> Exploitation
+    P6 --> Exploitation
+    P7 --> Exploitation
+    AtomicVulns -- exploited via --> DirectExploitation
+    DirectExploitation --> Exploitation
+    P1@{ shape: rect}
+    P2@{ shape: rect}
+    P3@{ shape: rect}
+     Tech:::ctx
+     Func:::ctx
+     ConfigErrors:::flaws
+     DesignMistakes:::flaws
+     ImplFlaws:::flaws
+     SpecFlaws:::flaws
+     AtomicVulns:::vulns
+     LogicFlaws:::vulns
+     PatternDrivenVulns:::vulns
+     VC1:::vc
+     VC2:::vc
+     M1:::meth
+     M2:::meth
+     AV1:::av
+     AV2:::av
+     AV3:::av
+     AV4:::av
+     T1:::tech
+     T2:::tech
+     T3:::tech
+     T4:::tech
+     T5:::tech
+     T6:::tech
+     T7:::tech
+     P1:::payload
+     P2:::payload
+     P3:::payload
+     P4:::payload
+     P5:::payload
+     P6:::payload
+     P7:::payload
+     Spacer1:::spacer
+     Spacer2:::spacer
+     Spacer3:::spacer
+     DirectExploitation:::expl
+     MaliciousUseCases:::expl
+     Exploitation:::expl
+    classDef ctx      fill:#e3f2fd,stroke:#64b5f6,stroke-width:2px,rx:8,ry:8
+    classDef flaws    fill:#ffe0b2,stroke:#fb8c00,stroke-width:2px,rx:8,ry:8
+    classDef vulns    fill:#f3e5f5,stroke:#ba68c8,stroke-width:2px,rx:8,ry:8
+    classDef vc       fill:#ffcdd2,stroke:#e57373,stroke-width:2px,rx:8,ry:8
+    classDef meth     fill:#dcedc8,stroke:#81c784,stroke-width:2px,rx:8,ry:8
+    classDef av       fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,rx:8,ry:8
+    classDef tech     fill:#d1c4e9,stroke:#9575cd,stroke-width:2px,rx:8,ry:8
+    classDef payload  fill:#f8bbd0,stroke:#ec407a,stroke-width:2px,rx:8,ry:8
+    classDef expl     fill:#c8e6c9,stroke:#4caf50,stroke-width:2px,rx:8,ry:8
+    classDef spacer   fill:transparent,stroke:transparent
