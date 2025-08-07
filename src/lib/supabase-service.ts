@@ -1,6 +1,7 @@
 import { supabase, formatError } from './supabase';
 import {
    Role,
+   Workspace,
    WorkspaceMember,
    WorkspaceShare,
    ScopeType,
@@ -13,6 +14,11 @@ import {
    FlawType,
    TechniqueTag
  } from '@/types';
+
+// Additional interfaces for entities not defined in types
+interface WorkspaceWithMembers extends Workspace {
+ members?: WorkspaceMember[];
+}
 
 // Additional interfaces for entities not defined in types
 interface AuditLog {
@@ -92,13 +98,11 @@ interface AuditLog {
    techniqueId: string;
    funcTmplId: string;
  }
+interface UserRole {
+  userId: string;
+  roleId: string;
+}
 
- interface UserRole {
-   userId: string;
-   roleId: string;
- }
-}
-}
 
 // Audit Log Management Service
 export const auditLogService = {
@@ -1634,7 +1638,7 @@ export const workspaceShareService = {
 export const extendedWorkspaceService = {
  ...workspaceMemberService,
  
- async getWithMembers(workspaceId: string): Promise<any> {
+ async getWithMembers(workspaceId: string): Promise<WorkspaceWithMembers | null> {
    const { data, error } = await supabase
      .from('workspace')
      .select(`
@@ -2451,5 +2455,5 @@ export const technologyBehaviorService = {
     }
     
     return true;
-  }
+ }
 };
